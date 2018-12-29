@@ -17,7 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/reedobrien/acc"
 	"github.com/reedobrien/httpsd/logging"
-	"github.com/reedobrien/httpsd/proxy"
 	zerolog "github.com/rs/zerolog"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -44,6 +43,7 @@ func main() {
 
 		bucket  = flag.String("bucket", "certbucket", "The bucket to cache certificates in.")
 		region  = flag.String("region", "us-east-1", "The region where the bucket lives.")
+		rootDir = flag.String("rootDir", "/var/www/", "The directory to use as the server root.")
 		verbose = flag.Bool("verbose", false, "If logging should be verbose.")
 		version = flag.Bool("version", false, "Display version and build information.")
 
@@ -80,6 +80,18 @@ built with: %s
 	sess := session.Must(session.NewSession(&aws.Config{Region: region}))
 	svc := s3.New(sess)
 
+	whitelist := []string{
+		"reedobrien.com",
+		"www.reedobrien.com",
+		"209.reedobrien.com",
+		"fffd.io",
+		"www.fffd.io",
+		"209.fffd.io",
+		"bfg.io",
+		"www.bfg.io",
+		"209.bfg.io",
+	}
+
 	// Setup the https and http server.
 	m := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
@@ -87,22 +99,40 @@ built with: %s
 		Cache:      acc.MustS3(svc, *bucket, ""),
 	}
 
-	// Create a new reverse proxy for the backends.
-	proxySvc := proxy.NewReverseProxy(cgisURL, nginxsURL, placksURL)
-	proxyLogger := logger.With().Str(
+	fs := http.FileServer(http.Dir(*rootDir))
+	fsLogger := logger.With().Str(
 		"handler", "TLS Termination Proxy").Logger()
-	proxyHandler := logging.NewAccessLogger(proxySvc, proxyLogger)
+	loggingHandler := logging.NewAccessLogger(fs, fsLogger)
 
 	// Create the servers.
 	h443 := &http.Server{
-		Addr:      *addrTLS,
-		Handler:   proxyHandler,
-		TLSConfig: &tls.Config{GetCertificate: m.GetCertificate}}
+		Addr:           *addrTLS,
+		Handler:        loggingHandler,
+		TLSConfig:      &tls.Config{GetCertificate: m.GetCertificate},
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
 
 	// Run the servers in goroutines.
 	go func() {
-		if err = h443.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
-			logger.Fatal().Err(err).Msg("failed to start server")
+		if err := h443.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
+			logger.Fatal().Err(err).Msg("failed to start https server")
+		}
+	}()
+
+	go func() {
+		h := m.HTTPHandler(nil)
+		h80 := &http.Server{
+			Addr:           "0.0.0.0:80",
+			Handler:        h,
+			ReadTimeout:    10 * time.Second,
+			WriteTimeout:   10 * time.Second,
+			MaxHeaderBytes: 1 << 20,
+		}
+		if err := h80.ListenAndServe(); err != nil {
+			logger.Fatal().Err(err).Msg("failed to start http server")
+
 		}
 	}()
 
@@ -117,7 +147,7 @@ built with: %s
 	// Call shutdown on the servers with that context. This will close the
 	// server and wait for current connections to finish -- for the duration
 	// of the timeout.
-	if err = h443.Shutdown(ctx); err != nil {
+	if err := h443.Shutdown(ctx); err != nil {
 		logger.Error().Err(err).Msg("caught on h443.Shutdown")
 	}
 }
