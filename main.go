@@ -80,18 +80,6 @@ built with: %s
 	sess := session.Must(session.NewSession(&aws.Config{Region: region}))
 	svc := s3.New(sess)
 
-	whitelist := []string{
-		"reedobrien.com",
-		"www.reedobrien.com",
-		"209.reedobrien.com",
-		"fffd.io",
-		"www.fffd.io",
-		"209.fffd.io",
-		"bfg.io",
-		"www.bfg.io",
-		"209.bfg.io",
-	}
-
 	// Setup the https and http server.
 	m := autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
