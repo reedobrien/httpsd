@@ -1,0 +1,21 @@
+[Unit]
+Description=https daemon
+ConditionPathExists=/usr/local/bin/httpsd
+After=network.target
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=www
+Group=www
+LimitNOFILE=500000
+EnvironmentFile=/var/httpsd/env
+
+Restart=on-failure
+RestartSec=10
+
+WorkingDirectory=/var/www/html
+ExecStart=/usr/local/bin/httpsd -addrTLS 0.0.0.0:443 -rootDir $ROOTDIR -bucket $BUCKET
+
+[Install]
+WantedBy=multi-user.target
