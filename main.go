@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "expvar"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -121,6 +123,13 @@ built with: %s
 		if err := h80.ListenAndServe(); err != nil {
 			logger.Fatal().Err(err).Msg("failed to start http server")
 
+		}
+	}()
+
+	// Start a server on localhost:9000 for expvar.
+	go func() {
+		if err := http.ListenAndServe("127.0.0.1:9000", nil); err != nil {
+			logger.Fatal().Err(err).Msg("failed to start expvar server")
 		}
 	}()
 
