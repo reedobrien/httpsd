@@ -20,6 +20,10 @@ func NewLogger(app string, verbose bool, out io.Writer) zerolog.Logger {
 	// Show nanoseconds.
 	zerolog.TimeFieldFormat = TimeFormat
 
+	// NanoSeconds? Default is milliseconds.
+	// zerolog.DurationFieldUnit = time.Nanosecond
+	// zerolog.DurationFieldInteger = true
+
 	// Setup a logger.
 	hostname, err := os.Hostname()
 	if err != nil {

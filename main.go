@@ -101,7 +101,7 @@ built with: %s
 
 	fs := http.FileServer(http.Dir(*rootDir))
 	fsLogger := logger.With().Str(
-		"handler", "TLS Termination Proxy").Logger()
+		"handler", "httpsd").Logger()
 	loggingHandler := logging.NewAccessLogger(fs, fsLogger)
 
 	// Create the servers.

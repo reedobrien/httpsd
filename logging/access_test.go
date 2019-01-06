@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"html"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/reedobrien/checkers"
 	"github.com/reedobrien/httpsd/logging"
-	"github.com/reedobrien/httpsd/proxy"
 	"github.com/rs/zerolog"
 )
 
@@ -56,6 +54,7 @@ func TestAccessLogger(t *testing.T) {
 		req, err := http.NewRequest(test.method, ts.URL+test.uri, nil)
 		checkers.OK(t, err)
 		req.Header.Add("Referer", test.referrer)
+		req.Header.Add("X-Forwarded-For", "127.0.0.1, 127.0.0.2")
 		req.Host = test.host
 
 		res, err := client.Do(req)
@@ -77,115 +76,26 @@ func TestAccessLogger(t *testing.T) {
 		checkers.Equals(t, got.Domain, test.host)
 		checkers.Equals(t, got.ClientIP, "127.0.0.1")
 		checkers.Equals(t, got.ReponseBytes, len(test.response)+1)
+		checkers.Equals(t, got.XRID, []string{"127.0.0.1", "127.0.0.2"})
+		checkers.Equals(t, got.URI, test.uri)
 	}
 
 }
 
 type proxyLogRecord struct {
-	Time         string  `json:"time"`
-	Level        string  `json:"level"`
-	App          string  `json:"app"`
-	AppHost      string  `json:"app_host"`
-	ClientIP     string  `json:"client_ip"`
-	Duration     float64 `json:"duration"`
-	Domain       string  `json:"domain"`
-	Method       string  `json:"method"`
-	URI          string  `json:"uri"`
-	Protocol     string  `json:"protocol"`
-	Status       int     `json:"status"`
-	ReponseBytes int     `json:"reponse_bytes"`
-	Referrer     string  `json:"referrer"`
-	UserAgent    string  `json:"user_agent"`
-}
-
-func TestRedirectLogger(t *testing.T) {
-	table := []struct {
-		desc      string
-		host      string
-		method    string
-		uri       string
-		protocol  string
-		status    int
-		response  string
-		referrer  string
-		userAgent string
-	}{
-		{"test GET path only", "example.com", "GET", "/blah", "HTTP/1.1", 200, "foo", "http://locahost/bar", "Go-http-client/1.1"},
-		{"test POST path only", "example.com", "POST", "/blah", "HTTP/1.1", 200, "foo", "http://locahost/bar", "Go-http-client/1.1"},
-		{"test GET path with query", "www.example.com", "GET", "/blah?a=b&a=c", "HTTP/1.1", 200, "foo", "http://locahost/bar", "Go-http-client/1.1"},
-		{"test GET path with query", "www.example.com", "POST", "/blah?a=b&a=c", "HTTP/1.1", 200, "foo", "http://locahost/bar", "Go-http-client/1.1"},
-	}
-
-	out := &bytes.Buffer{}
-
-	zerolog.TimeFieldFormat = logging.TimeFormat
-	logger := zerolog.New(out).With().
-		Timestamp().
-		Str("app", "testapp").
-		Str("app_host", "testhost").
-		Logger()
-
-	client := http.Client{CheckRedirect: func(r *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}}
-
-	for _, test := range table {
-		out.Reset()
-		ts := httptest.NewServer(logging.NewRedirectLogger(&proxy.RedirectService{}, logger))
-		defer ts.Close()
-
-		req, err := http.NewRequest(test.method, ts.URL+test.uri, nil)
-		checkers.OK(t, err)
-		req.Header.Add("Referer", test.referrer)
-		req.Host = test.host
-
-		res, err := client.Do(req)
-		checkers.OK(t, err)
-
-		b, err := ioutil.ReadAll(res.Body)
-		checkers.OK(t, err)
-		defer res.Body.Close()
-
-		var wantBody string
-		switch test.method {
-		case "GET":
-			u := html.EscapeString("https://" + test.host + test.uri)
-			wantBody = fmt.Sprintf("<a href=%q>Found</a>.\n\n", u)
-			checkers.Equals(t, string(b), wantBody)
-		case "POST":
-			wantBody = ""
-			checkers.Equals(t, string(b), wantBody)
-		}
-
-		got := &redirectLogRecord{}
-		err = json.Unmarshal(out.Bytes(), got)
-		checkers.OK(t, err)
-
-		checkers.Equals(t, got.App, "testapp")
-		checkers.Equals(t, got.AppHost, "testhost")
-		checkers.Equals(t, got.UserAgent, test.userAgent)
-		checkers.Equals(t, got.Referrer, test.referrer)
-		checkers.Equals(t, got.Host, test.host)
-		checkers.Equals(t, got.ClientIP, "127.0.0.1")
-		checkers.Equals(t, got.ReponseBytes, len(wantBody))
-	}
-}
-
-type redirectLogRecord struct {
-	Time         string  `json:"time"`
-	Level        string  `json:"level"`
-	App          string  `json:"app"`
-	AppHost      string  `json:"app_host"`
-	ClientIP     string  `json:"client_ip"`
-	Duration     float64 `json:"duration"`
-	URL          string  `json:"url"`
-	Host         string  `json:"host"`
-	Method       string  `json:"method"`
-	URI          string  `json:"uri"`
-	Protocol     string  `json:"protocol"`
-	Status       int     `json:"status"`
-	ReponseBytes int     `json:"reponse_bytes"`
-	Referrer     string  `json:"referrer"`
-	UserAgent    string  `json:"user_agent"`
-	Message      string  `json:"message"`
+	Time         string   `json:"time"`
+	Level        string   `json:"level"`
+	App          string   `json:"app"`
+	AppHost      string   `json:"app_host"`
+	ClientIP     string   `json:"client_ip"`
+	XRID         []string `json:"x_forwarded_for"`
+	Duration     float64  `json:"duration"`
+	Domain       string   `json:"domain"`
+	Method       string   `json:"method"`
+	URI          string   `json:"request_uri"`
+	Protocol     string   `json:"protocol"`
+	Status       int      `json:"status"`
+	ReponseBytes int      `json:"reponse_bytes"`
+	Referrer     string   `json:"referrer"`
+	UserAgent    string   `json:"user_agent"`
 }
