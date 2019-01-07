@@ -50,6 +50,12 @@
   revision = "0b12d6b5"
 
 [[projects]]
+  name = "github.com/paulbellamy/ratecounter"
+  packages = ["."]
+  revision = "524851a93235ac051e3540563ed7909357fe24ab"
+  version = "v0.2.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/reedobrien/acc"
   packages = ["."]
@@ -62,10 +68,10 @@
   revision = "a2b2374142af559c6a6fcf6a92cea9fcfa966c6e"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/reedobrien/rbp"
+  name = "github.com/rs/xid"
   packages = ["."]
-  revision = "79f4ed749a01bd2995e0f355352d7c966962e3f8"
+  revision = "15d26544def341f036c5f8dca987a4cbe575032c"
+  version = "v1.2.1"
 
 [[projects]]
   name = "github.com/rs/zerolog"
@@ -90,6 +96,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "73cf7931c27c8b4ecddd733709e2d62f83dd552237173cf1d3fda25e1d5e8a0c"
+  inputs-digest = "e2c4ee215e0607b72cb0e080cfeb8c4caf87256a9b2bed53813072343a42ed91"
   solver-name = "gps-cdcl"
   solver-version = 1

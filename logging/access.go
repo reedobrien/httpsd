@@ -6,39 +6,43 @@ import (
 	"strings"
 	"time"
 
+	"github.com/paulbellamy/ratecounter"
 	"github.com/rs/zerolog"
 )
 
 var (
 	proxyCounter *expvar.Map
-	// proxyRequests   *expvar.Int
-	// proxy400Counter *expvar.Int
-	// proxy500Counter *expvar.Int
-	// proxyCompleted  *expvar.Int
-	// proxyDuration   *expvar.Float
+	rps          *ratecounter.RateCounter
+	bps          *ratecounter.RateCounter
+	durAvg       *ratecounter.AvgRateCounter
 
-	redirCounter *expvar.Map
-	// proxyRequests   *expvar.Int
-	// proxy400Counter *expvar.Int
-	// proxy500Counter *expvar.Int
-	// proxyCompleted  *expvar.Int
-	// proxyDuration   *expvar.Float
+	bytesSecond = expvar.NewInt(bytesRate)
+	reqSecond   = expvar.NewInt(requestRate)
+	avgDuration = expvar.NewFloat(avgDur)
 )
 
 func init() {
 	proxyCounter = expvar.NewMap("proxyCounter")
-	redirCounter = expvar.NewMap("redirCounter")
+	rps = ratecounter.NewRateCounter(time.Second)
+	bps = ratecounter.NewRateCounter(time.Second)
+	durAvg = ratecounter.NewAvgRateCounter(time.Minute)
+
 }
 
 const (
 	// TimeFormat is the time format for logging.
 	TimeFormat = time.RFC3339Nano
 
+	avgDur      = "duration_1m_avg"
+	bytesRate   = "bytes_second"
+	requestRate = "requests_second"
+
 	err400    = "400"
+	err404    = "404"
 	err500    = "500"
 	requests  = "requests"
 	completed = "completed"
-	// duration  = "duration"
+	bytes     = "bytes_transferred"
 )
 
 // byteCounter implements an io.Writer wrapping the http.ResponseWriter to
@@ -65,6 +69,7 @@ func (ar *byteCounter) WriteHeader(status int) {
 
 // NewAccessLogger returns a constructed AccessLogger pointer.
 func NewAccessLogger(handler http.Handler, logger zerolog.Logger) http.Handler {
+	logger = logger.With().Str("type", "access").Logger()
 	return &AccessLogger{
 		handler: handler,
 		logger:  logger,
@@ -92,9 +97,12 @@ func (al *AccessLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		status:         http.StatusOK,
 	}
 	start := time.Now()
+
 	al.handler.ServeHTTP(bc, r)
 	dur := time.Since(start)
+
 	al.logger.Info().
+		Str("request_id", r.Header.Get("X-Request-ID")).
 		Str("client_ip", clientIP).
 		Strs("x_forwarded_for", strings.Split(r.Header.Get("X-Forwarded-For"), ", ")).
 		Dur("duration", dur).
@@ -109,61 +117,20 @@ func (al *AccessLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case bc.status == 404:
-		proxyCounter.Add("404", 1)
+		proxyCounter.Add(err404, 1)
 	case bc.status > 399 && bc.status < 500:
 		proxyCounter.Add(err400, 1)
 	case bc.status > 499:
 		proxyCounter.Add(err500, 1)
 	}
 
+	proxyCounter.Add(bytes, bc.responseBytes)
 	proxyCounter.Add(completed, 1)
-}
+	rps.Incr(1)
+	bps.Incr(bc.responseBytes)
+	durAvg.Incr(dur.Nanoseconds())
 
-// NewRedirectLogger constructs a RedirectLogger handler.
-func NewRedirectLogger(handler http.Handler, logger zerolog.Logger) http.Handler {
-	return &RedirectLogger{
-		handler: handler,
-		logger:  logger,
-	}
-}
-
-// RedirectLogger wraps a handler and logs information about the request. This
-// is meant specifically to log information about redirects. E.g. original URL
-// and the location redirected to.
-type RedirectLogger struct {
-	handler http.Handler
-	logger  zerolog.Logger
-}
-
-// ServeHTTP makes our type a http.HandlerFunc.
-func (al *RedirectLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	redirCounter.Add(requests, 1)
-
-	clientIP := r.RemoteAddr
-	if colon := strings.LastIndex(clientIP, ":"); colon != -1 {
-		clientIP = clientIP[:colon]
-	}
-	bc := &byteCounter{
-		ResponseWriter: w,
-		status:         http.StatusOK,
-	}
-	orig := r.URL.String()
-	start := time.Now()
-	al.handler.ServeHTTP(bc, r)
-	dur := time.Since(start)
-	al.logger.Info().
-		Str("client_ip", clientIP).
-		Dur("duration", dur).
-		Str("url", orig).
-		Str("host", r.Host).
-		Str("method", r.Method).
-		Str("uri", r.RequestURI).
-		Str("protocol", r.Proto).
-		Int("status", bc.status).
-		Int64("reponse_bytes", bc.responseBytes).
-		Str("referrer", r.Referer()).
-		Str("user_agent", r.UserAgent()).
-		Msg("redirected to: " + r.URL.String())
-
-	redirCounter.Add(completed, 1)
+	reqSecond.Set(rps.Rate())
+	bytesSecond.Set(bps.Rate())
+	avgDuration.Set(durAvg.Rate())
 }
