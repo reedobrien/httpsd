@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	proxyCounter *expvar.Map
-	rps          *ratecounter.RateCounter
-	bps          *ratecounter.RateCounter
-	durAvg       *ratecounter.AvgRateCounter
+	reqCounter *expvar.Map
+	rps        *ratecounter.RateCounter
+	bps        *ratecounter.RateCounter
+	durAvg     *ratecounter.AvgRateCounter
 
 	bytesSecond = expvar.NewInt(bytesRate)
 	reqSecond   = expvar.NewInt(requestRate)
@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	proxyCounter = expvar.NewMap("proxyCounter")
+	reqCounter = expvar.NewMap("proxyCounter")
 	rps = ratecounter.NewRateCounter(time.Second)
 	bps = ratecounter.NewRateCounter(time.Second)
 	durAvg = ratecounter.NewAvgRateCounter(time.Minute)
@@ -87,7 +87,7 @@ type AccessLogger struct {
 
 // ServeHTTP makes our type a http.HandlerFunc.
 func (al *AccessLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	proxyCounter.Add(requests, 1)
+	reqCounter.Add(requests, 1)
 	clientIP := r.RemoteAddr
 	if colon := strings.LastIndex(clientIP, ":"); colon != -1 {
 		clientIP = clientIP[:colon]
@@ -117,15 +117,15 @@ func (al *AccessLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case bc.status == 404:
-		proxyCounter.Add(err404, 1)
+		reqCounter.Add(err404, 1)
 	case bc.status > 399 && bc.status < 500:
-		proxyCounter.Add(err400, 1)
+		reqCounter.Add(err400, 1)
 	case bc.status > 499:
-		proxyCounter.Add(err500, 1)
+		reqCounter.Add(err500, 1)
 	}
 
-	proxyCounter.Add(bytes, bc.responseBytes)
-	proxyCounter.Add(completed, 1)
+	reqCounter.Add(bytes, bc.responseBytes)
+	reqCounter.Add(completed, 1)
 	rps.Incr(1)
 	bps.Incr(bc.responseBytes)
 	durAvg.Incr(dur.Nanoseconds())
