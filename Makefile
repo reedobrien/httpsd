@@ -1,29 +1,31 @@
 .SILENT: ; # no need for @
 
-PROJECT			=httpsd
-PROJECT_DIR		=$(shell pwd)
-GOFILES         :=$(shell find . -name '*.go' -not -path './vendor/*')
-GOPACKAGES      :=$(shell go list ./... | grep -v /vendor/| grep -v /checkers)
+PROJECT 	= httpsd
+PROJECT_DIR	= $(shell pwd)
+
+GOFILES         := $(shell find . -name '*.go' -not -path './vendor/*')
+GOPACKAGES      := $(shell go list ./... | grep -v /vendor/| grep -v /checkers)
 OS              := $(shell go env GOOS)
 ARCH            := $(shell go env GOARCH)
 
-GITHASH         :=$(shell git rev-parse --short HEAD)
-GITBRANCH       :=$(shell git rev-parse --abbrev-ref HEAD)
-GITTAGORBRANCH 	:=$(shell sh -c 'git describe --always --dirty 2>/dev/null')
-BUILDDATE      	:=$(shell date -u +%Y%m%d%H%M)
-GO_LDFLAGS		?= -s -w
+GITHASH         := $(shell git rev-parse --short HEAD)
+GITBRANCH       := $(shell git rev-parse --abbrev-ref HEAD)
+GITTAGORBRANCH 	:= $(shell sh -c 'git describe --always --dirty 2>/dev/null')
+BUILDDATE      	:= $(shell date -u +%Y%m%d%H%M)
+
+GO_LDFLAGS	?= -s -w
 GO_BUILD_FLAGS  :=-ldflags "${GOLDFLAGS} -X main.BuildVersion=${GITTAGORBRANCH} -X main.GitHash=${GITHASH} -X main.GitBranch=${GITBRANCH} -X main.BuildDate=${BUILDDATE}"
 
 
 ## What if there's no CIRCLE_BUILD_NUM
 ifeq ($$CIRCLE_BUILD_NUM, "")
-		BUILD_NUM:=""
+	BUILD_NUM:=""
 else
-		CB:=$$CIRCLE_BUILD_NUM
-		BUILD_NUM:=$(CB)/
+	CB:=$$CIRCLE_BUILD_NUM
+	BUILD_NUM:=$(CB)/
 endif
 
-WORKDIR         :=$(PROJECT_DIR)/_workdir
+WORKDIR	:=$(PROJECT_DIR)/_workdir
 
 default: build-linux
 
@@ -45,7 +47,7 @@ coverage-html:
 	./_misc/coverage.sh --html
 
 dependencies:
-	go get honnef.co/go/tools/cmd/megacheck
+	go get honnef.co/go/tools/cmd/staticcheck
 	go get github.com/alecthomas/gometalinter
 	go get github.com/golang/dep/cmd/dep
 	dep ensure
@@ -60,11 +62,10 @@ lint:
 # ones here.
 # At the time of this writing megacheck runs gosimple, staticcheck, and
 # unused. All production honnef tools.
-	# gometalinter --enable=goimports --enable=unparam --enable=unused --disable=golint --disable=govet .
 	echo "metalinter..."
-	gometalinter --enable=goimports --enable=unparam --enable=unused --disable=golint --disable=govet $(GOPACKAGES)
-	echo "megacheck..."
-	megacheck $(GOPACKAGES)
+	gometalinter --enable=goimports --enable=unparam --disable=golint --disable=govet $(GOPACKAGES)
+	echo "staticcheck..."
+	staticcheck $(GOPACKAGES)
 	echo "golint..."
 	golint -set_exit_status $(GOPACKAGES)
 	echo "go vet..."
