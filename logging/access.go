@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	reqCounter = expvar.NewMap("proxyCounter")
+	reqCounter = expvar.NewMap("reqCounter")
 	rps = ratecounter.NewRateCounter(time.Second)
 	bps = ratecounter.NewRateCounter(time.Second)
 	durAvg = ratecounter.NewAvgRateCounter(time.Minute)
