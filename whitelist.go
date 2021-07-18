@@ -6,6 +6,7 @@ var whitelist = []string{
 	"209.reedobrien.com",
 	"bfg.io",
 	"fffd.io",
+	"fffd.tech",
 	"reedobrien.com",
 	"www.bfg.io",
 	"www.fffd.io",
