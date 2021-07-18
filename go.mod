@@ -7,6 +7,7 @@ require (
 	github.com/paulbellamy/ratecounter v0.2.0
 	github.com/reedobrien/acc v0.0.0-20180123061714-ade2ea5c72ad
 	github.com/reedobrien/checkers v1.0.0
+	github.com/reedobrien/xrid v0.1.1
 	github.com/rs/zerolog v1.18.0
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 )
