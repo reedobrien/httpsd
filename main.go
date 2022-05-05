@@ -20,6 +20,7 @@ import (
 	"github.com/reedobrien/acc"
 	"github.com/reedobrien/httpsd/logging"
 	zerolog "github.com/rs/zerolog"
+	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -96,9 +97,15 @@ built with: %s
 
 	// Create the servers.
 	h443 := &http.Server{
-		Addr:           *addrTLS,
-		Handler:        loggingHandler,
-		TLSConfig:      &tls.Config{GetCertificate: m.GetCertificate},
+		Addr:    *addrTLS,
+		Handler: loggingHandler,
+		TLSConfig: &tls.Config{
+			GetCertificate: m.GetCertificate,
+			NextProtos: []string{
+				"h2", "http/1.1", // enable HTTP/2
+				acme.ALPNProto, // enable tls-alpn ACME challenges
+			},
+		},
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
