@@ -1,4 +1,4 @@
-# github.com/aws/aws-sdk-go v1.30.29
+# github.com/aws/aws-sdk-go v1.33.0
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -29,6 +29,7 @@ github.com/aws/aws-sdk-go/internal/sdkuri
 github.com/aws/aws-sdk-go/internal/shareddefaults
 github.com/aws/aws-sdk-go/internal/strings
 github.com/aws/aws-sdk-go/internal/sync/singleflight
+github.com/aws/aws-sdk-go/private/checksum
 github.com/aws/aws-sdk-go/private/protocol
 github.com/aws/aws-sdk-go/private/protocol/eventstream
 github.com/aws/aws-sdk-go/private/protocol/eventstream/eventstreamapi

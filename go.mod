@@ -3,7 +3,7 @@ module github.com/reedobrien/httpsd
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go v1.30.29
+	github.com/aws/aws-sdk-go v1.33.0
 	github.com/paulbellamy/ratecounter v0.2.0
 	github.com/reedobrien/acc v0.0.0-20210718193754-b8afe12b7818
 	github.com/reedobrien/checkers v1.0.0
