@@ -1,11 +1,13 @@
 module github.com/reedobrien/httpsd
 
-go 1.18
+go 1.21
+
+toolchain go1.21.1
 
 require (
 	github.com/aws/aws-sdk-go v1.45.24
 	github.com/paulbellamy/ratecounter v0.2.0
-	github.com/reedobrien/acc v0.0.0-20221231000742-62fd8c56f815
+	github.com/reedobrien/acc v0.0.0-20231010170852-a31a88a8027f
 	github.com/reedobrien/checkers v1.0.0
 	github.com/reedobrien/xrid v0.1.1
 	github.com/rs/zerolog v1.31.0
@@ -21,5 +23,4 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
